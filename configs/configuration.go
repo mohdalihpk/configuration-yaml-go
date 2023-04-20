@@ -1,10 +1,8 @@
 package configs
 
 import (
-	"bytes"
-	"io/ioutil"
+	"fmt"
 	"log"
-	"os"
 
 	"github.com/spf13/viper"
 )
@@ -17,58 +15,83 @@ Returns a Configs struct based on the application.yaml file
 		<font color="0B8900">For Government Official Use Only</font><br>
 */
 
-type Configs struct {
-	Config Configurations
+type JAMS struct {
+	Config struct {
+		ali   string `mapstructure:"ali"`
+		Kafka struct {
+			// kafka bootstrap-server
+			bootstrapserver string
+			// Kafka client id
+			clientid string
+		}
+
+		Udp struct {
+			port int8 `mapstructure:"port"`
+		}
+	}
 }
 
-type Configurations struct {
+var (
+	filedirectoryPath  string
+	fileNameWithoutExt string
+	fileExtension      string
+)
 
-	// Unique identifier for truck instance
-	Id string
-	// Latitude coodinate of truck in decimal degrees
-	Lat float64
-	// Longitude coodinate of truck in decimal degrees
-	Lon float64
-	// Heading of truck in degrees
-	Hdg float64
-	// IP address of the NTP server
-	Ntp_address       string
-	Ntp_username      string
-	Ntp_password      string
-	Request_every_sec int
-	Kafka_address     string
-	Kafka_topic       string
+func init() {
+	log.SetFlags(log.LstdFlags | log.Ltime)
+	filedirectoryPath = "../resources/"
+	fileNameWithoutExt = "application"
+	fileExtension = "yaml"
+}
+
+func GetConfigCustom(_filedirectoryPath string, _fileNameWithoutExt string, _fileExtension string) (error, map[string]any) {
+	if len(_filedirectoryPath) == 0 || len(_fileNameWithoutExt) == 0 || len(_fileExtension) == 0 {
+		log.Fatalln("Argument cannot be empty")
+	}
+	filedirectoryPath = _filedirectoryPath
+	fileNameWithoutExt = _fileNameWithoutExt
+	fileExtension = _fileExtension
+	return GetConfig()
+}
+
+/**
+  * if run under the other profile. For example application-dev.yaml
+**/
+func GetConfigProfile(profile string) (error, map[string]any) {
+	if len(profile) == 0 {
+		log.Fatalln("Profile does not exist")
+	}
+	fileNameWithoutExt = fileNameWithoutExt + "-" + profile
+	return GetConfig()
 }
 
 /*
 Reads in the config file and returns the config as a struct
 */
-func GetConfig() Configs {
+func GetConfig() (error, map[string]any) {
+	viper.AutomaticEnv()
 
-	// Read in the config file
-	confContent, err := ioutil.ReadFile("./resources/application.yaml")
-	if err != nil {
-		panic(err)
+	viper.SetConfigName(fileNameWithoutExt)
+	viper.SetConfigType(fileExtension)
+	viper.AddConfigPath(filedirectoryPath)
+
+	// Config file found and successfully parsed
+	if err := viper.ReadInConfig(); err != nil {
+		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+			// Config file not found; ignore error if desired
+			log.Fatalln("Config file not found")
+		} else {
+			// Config file was found but another error was produced
+			fmt.Println("Config file was found but another error was produced")
+		}
 	}
+	// viper.SetEnvPrefix("JAMS")
+	// viper.BindEnv("jams.kafka.client-id")
 
-	// Expand environment variables
-	confContent = []byte(os.ExpandEnv(string(confContent)))
-
-	viper.SetConfigType("yml")
-
-	var config Configs
-
-	if err := viper.ReadConfig(bytes.NewBuffer(confContent)); err != nil {
-		log.Fatalln("Error reading config file", err)
+	jams := viper.Get("jams")
+	jamsm, ok := jams.(map[string]any)
+	if !ok {
+		log.Fatalln("yaml is not properly formated.")
 	}
-
-	err = viper.Unmarshal(&config)
-	if err != nil {
-		log.Fatalln("Unable to decode into struct", err)
-	}
-
-	log.Println("Ntp_addrress: ", config.JAMS.GPS.Ntp_address)
-	log.Println("Kafka_address: ", config.JAMS.GPS.Kafka_address)
-	log.Println("Id: ", config.JAMS.GPS.Id)
-	return config
+	return nil, jamsm
 }
