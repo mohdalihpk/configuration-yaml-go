@@ -15,7 +15,7 @@ Returns a Configs struct based on the application.yaml file
 		<font color="0B8900">For Government Official Use Only</font><br>
 */
 
-type JAMS struct {
+type CommonDto struct {
 	Config struct {
 		ali   string `mapstructure:"ali"`
 		Kafka struct {
@@ -85,13 +85,13 @@ func GetConfig() (error, map[string]any) {
 			fmt.Println("Config file was found but another error was produced")
 		}
 	}
-	// viper.SetEnvPrefix("JAMS")
-	// viper.BindEnv("jams.kafka.client-id")
+	// viper.SetEnvPrefix("commonDto")
+	// viper.BindEnv("commonDto.kafka.client-id")
 
-	jams := viper.Get("jams")
-	jamsm, ok := jams.(map[string]any)
+	commonDto := viper.Get("commonDto")
+	commonDtom, ok := commonDto.(map[string]any)
 	if !ok {
 		log.Fatalln("yaml is not properly formated.")
 	}
-	return nil, jamsm
+	return nil, commonDtom
 }
